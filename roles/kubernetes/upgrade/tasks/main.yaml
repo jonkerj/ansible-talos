@@ -1,0 +1,19 @@
+---
+- name: Upgrade kube-apiserver
+  include_tasks: upgrade_daemonset.yaml
+  vars:
+    daemonset: kube-apiserver
+    image: k8s.gcr.io/kube-apiserver:{{ kubernetes_version }}
+    timeout: 20
+- name: Upgrade remaining daemonsets
+  include_tasks: upgrade_daemonset.yaml
+  vars:
+    timeout: 5
+    image: k8s.gcr.io/{{ daemonset }}:{{ kubernetes_version }}
+  with_items:
+  - kube-controller-manager
+  - kube-proxy
+  - kube-scheduler
+  loop_control:
+    loop_var: daemonset
+...

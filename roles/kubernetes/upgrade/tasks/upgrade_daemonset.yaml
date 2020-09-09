@@ -1,0 +1,56 @@
+---
+- name: 'Get information about daemonset {{ daemonset }}'
+  k8s_info:
+    kubeconfig: '{{ kubeconfig }}'
+    kind: DaemonSet
+    namespace: kube-system
+    name: '{{ daemonset }}'
+  register: ds_start
+- name: 'Upgrade daemonset {{ daemonset }}'
+  when: ds_start.resources.0.spec.template.spec.containers.0.image != image
+  block:
+  - name: 'Fail if daemonset {{ daemonset }} is not healthy'
+    fail:
+      msg: 'Daemonset {{ daemonset }} is not healthy'
+    when: ds_start.resources.0.status.desiredNumberScheduled != ds_start.resources.0.status.numberReady
+  - name: 'Change hyperkube image to {{ image }}'
+    k8s:
+      kubeconfig: '{{ kubeconfig }}'
+      kind: DaemonSet
+      namespace: kube-system
+      name: '{{ daemonset }}'
+      state: present
+      definition:
+        spec:
+          template:
+            spec:
+              containers:
+              - name: '{{ daemonset }}'
+                image: '{{ image }}'
+  - name: 'Wait until daemonset {{ daemonset }} is upgrading'
+    k8s_info:
+      kubeconfig: '{{ kubeconfig }}'
+      kind: DaemonSet
+      namespace: kube-system
+      name: '{{ daemonset }}'
+    register: ds
+    delay: 1
+    retries: 60
+    until:
+    - ds.resources is defined
+    - ds.resources | length > 0
+    - ds.resources.0.status.desiredNumberScheduled != ds.resources.0.status.numberReady
+  - name: 'Wait until daemonset {{ daemonset }} is healthy'
+    k8s_info:
+      kubeconfig: '{{ kubeconfig }}'
+      kind: DaemonSet
+      namespace: kube-system
+      name: '{{ daemonset }}'
+    register: ds
+    delay: 10
+    retries: '{{ timeout * 6 }}'
+    until:
+    - ds.resources is defined
+    - ds.resources | length > 0
+    - ds.resources.0.status.desiredNumberScheduled == ds.resources.0.status.numberReady
+...

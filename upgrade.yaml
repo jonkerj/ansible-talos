@@ -1,0 +1,49 @@
+- name: Create kubeconfig
+  gather_facts: False
+  hosts: talos
+  run_once: yes
+  tags:
+  - talos
+  - kubernetes
+  tasks:
+  - name: Create temp file
+    tempfile:
+      state: directory
+    register: kcpath
+  - name: Download kubeconfig from Talos
+    command: talosctl kubeconfig --force {{ kcpath.path }} --nodes {{ lookup('dig', inventory_hostname) }}
+  - name: Remember the kubeconfig
+    set_fact: kubeconfig={{ kcpath.path }}/kubeconfig
+    delegate_to: localhost
+    delegate_facts: true
+    run_once: true
+- name: Upgrade controlplane
+  gather_facts: False
+  serial: 1
+  hosts: controlplane
+  tags: talos
+  roles:
+  - talos/upgrade
+- name: Upgrade workers
+  serial: 1
+  gather_facts: False
+  hosts: workers
+  tags: talos
+  roles:
+  - talos/upgrade
+- name: Upgrade Kubernetes
+  serial: 1
+  gather_facts: False
+  hosts: localhost
+  tags: kubernetes
+  roles:
+  - kubernetes/upgrade
+- name: Clean up
+  gather_facts: False
+  hosts: talos
+  run_once: yes
+  tasks:
+  - name: Delete kubeconfig path
+    file:
+      path: '{{ kcpath.path }}'
+      state: absent

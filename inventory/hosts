@@ -1,0 +1,19 @@
+localhost ansible_python_interpreter=python ansible_connection=local
+
+[talos:children]
+controlplane
+workers
+
+[talos:vars]
+ansible_connection=local
+ansible_python_interpreter=python
+
+[controlplane]
+talos1
+talos2
+talos3
+
+[workers]
+talos4
+talos5
+talos6

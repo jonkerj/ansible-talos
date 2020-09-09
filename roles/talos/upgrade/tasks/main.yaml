@@ -1,0 +1,56 @@
+- name: Check if node is ready
+  k8s_info:
+    kubeconfig: '{{ hostvars["localhost"]["kubeconfig"] }}'
+    kind: Node
+    name: '{{ inventory_hostname }}'
+  register: kubectl
+  failed_when: kubectl.resources.0.status | json_query("conditions[?type=='Ready'].status") | first != 'True'
+- name: Retrieve current Talos version
+  shell: >
+    talosctl version --endpoints {{ inventory_hostname }} --nodes {{ inventory_hostname }} --short | awk '/Tag/ {print $2}'
+  register: version_before
+  changed_when: false
+- name: Upgrade
+  when: version_before.stdout != talos_version
+  block:
+  - name: Trigger upgrade
+    command: talosctl upgrade --endpoints {{ inventory_hostname }} --nodes {{ inventory_hostname }} --image docker.io/autonomy/installer:{{ talos_version }}
+  - name: Wait for node to become unreachable
+    wait_for:
+      host: '{{ inventory_hostname }}'
+      port: 50000
+      state: stopped
+      #timeout: 300
+  - name: Wait for node to become reachable
+    wait_for:
+      host: '{{ inventory_hostname }}'
+      port: 50000
+      state: started
+      timeout: 300
+  - name: Wait for node to respond to talosctl
+    command: talosctl dmesg --endpoints {{ inventory_hostname }} --nodes {{ inventory_hostname }}
+    register: talosctl
+    retries: 6
+    delay: 10
+    until: talosctl.rc == 0
+  - name: Retrieve current Talos version
+    shell: >
+      talosctl version --endpoints {{ inventory_hostname }} --nodes {{ inventory_hostname }} --short | awk '/Tag/ {print $2}'
+    register: version_after
+  - name: Verify upgrade was done
+    assert:
+      that:
+      - version_after.stdout is version(talos_version, '==')
+  - name: Wait for node to be Ready
+    k8s_info:
+      kubeconfig: '{{ hostvars["localhost"]["kubeconfig"] }}'
+      kind: Node
+      name: '{{ inventory_hostname }}'
+    register: kubectl
+    until:
+    - kubectl.resources is defined
+    - kubectl.resources.0 is defined
+    - kubectl.resources.0.status is defined
+    - kubectl.resources.0.status | json_query("conditions[?type=='Ready'].status") | first == 'True'
+    delay: 10
+    retries: 60
