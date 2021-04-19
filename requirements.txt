@@ -1,4 +1,3 @@
-ansible
-jmespath
-openshift
-kubernetes
+ansible==2.10.*
+jmespath==0.10.*
+openshift==0.11.*
