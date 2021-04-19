@@ -1,0 +1,22 @@
+- name: Bootstrap init node
+  gather_facts: False
+  serial: 1
+  hosts: init
+  tags: talos
+  roles:
+  - talos/bootstrap
+- name: Wait for the init node to become healthy
+  gather_facts: False
+  hosts: init
+  run_once: true
+  tasks:
+  - name: wait for kubernetes API on init node
+    wait_for:
+      port: 6443
+      host: '{{ inventory_hostname }}'
+- name: Bootstrap non-init nodes
+  gather_facts: False
+  hosts: talos:!init
+  tags: talos
+  roles:
+  - talos/bootstrap

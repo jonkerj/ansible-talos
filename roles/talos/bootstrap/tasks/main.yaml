@@ -1,0 +1,19 @@
+- name: Wait for Talos API port on node
+  wait_for:
+    host: '{{ inventory_hostname }}'
+    port: 50000
+    timeout: 300
+- name: Talosctl apply-config
+  command:
+    talosctl apply-config --insecure --nodes "{{ inventory_hostname }}" --endpoints "{{ inventory_hostname }}" --file "{{ talos_config }}"
+- name: Wait for Talos node to disappear
+  wait_for:
+    host: '{{ inventory_hostname }}'
+    port: 50000
+    timeout: 300
+    state: absent
+- name: Wait for Talos node to reappear
+  wait_for:
+    host: '{{ inventory_hostname }}'
+    port: 50000
+    timeout: 300
