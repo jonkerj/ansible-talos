@@ -14,7 +14,7 @@
   when: version_before.stdout != talos_version
   block:
   - name: Trigger upgrade
-    command: talosctl upgrade --endpoints {{ inventory_hostname }} --nodes {{ inventory_hostname }} --image docker.io/autonomy/installer:{{ talos_version }}
+    command: talosctl upgrade --endpoints {{ inventory_hostname }} --nodes {{ inventory_hostname }} --image {{ talos_installer_image }}:{{ talos_version }}
   - name: Wait for node to become unreachable
     wait_for:
       host: '{{ inventory_hostname }}'
@@ -54,3 +54,6 @@
     - kubectl.resources.0.status | json_query("conditions[?type=='Ready'].status") | first == 'True'
     delay: 10
     retries: 60
+  - name: Wait two minutes
+    pause:
+      minutes: 2
