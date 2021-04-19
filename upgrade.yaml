@@ -11,7 +11,7 @@
       state: directory
     register: kcpath
   - name: Download kubeconfig from Talos
-    command: talosctl kubeconfig --force {{ kcpath.path }} --nodes {{ lookup('dig', inventory_hostname) }}
+    command: talosctl kubeconfig --force {{ kcpath.path }} --nodes '{{ inventory_hostname }}'
   - name: Remember the kubeconfig
     set_fact: kubeconfig={{ kcpath.path }}/kubeconfig
     delegate_to: localhost
